@@ -10,7 +10,7 @@
 ## 安装部署
 1. 克隆仓库
 ```bash
-git clone [repository_url]
+git clone https://github.com/JOTO-AI/servicedesk-api.git
 ```
 
 2. 创建环境变量文件
