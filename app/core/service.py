@@ -2,7 +2,7 @@ import requests
 import json
 from ..config import settings
 from ..utils.helpers import parse_html_tables, get_current_timestamp
-from ..models.schemas import CustomerModel, TechnicianModel
+from ..models.schemas import CustomerModel, TechnicianModel, PriorityModel
 
 class ServiceDeskService:
     def get_customer(self, customer_name: str) -> CustomerModel:
@@ -29,8 +29,17 @@ class ServiceDeskService:
                     return TechnicianModel(name=engineer)
         
         return TechnicianModel(name="administrator", id="5")
+    
+    def get_priority(self, priority_name: str) -> PriorityModel:
+        url = settings.base_url + "requests/priority"
+        headers = {"authtoken": settings.authtoken}
+        response = requests.get(url, headers=headers, verify=False)
+        data = response.json()
+        for priority in data['priority']:
+            if priority['name'] == priority_name:
+                return PriorityModel(name=priority['name'], id=priority['id'])
 
-    def create_request(self, customer_name: str, description: str, contact_info: str):
+    def create_request(self, customer_name: str, description: str, priority_name: str, contact_info: str):
         url = settings.base_url + "requests"
         headers = {"authtoken": settings.authtoken}
         
@@ -42,6 +51,7 @@ class ServiceDeskService:
         # 获取技术员信息
         technician = self.get_technician(customer_name)
         timestamp = get_current_timestamp()
+        priority = self.get_priority(priority_name)
         
         input_data = {
             "request": {
@@ -57,8 +67,7 @@ class ServiceDeskService:
                 "requester": {"name": "Support.Ai", "id": "901"},
                 "status": {"name": "Open", "id": "2"},
                 "group": {"name": "IT 技术运维组", "id": "4"},
-                "urgency": {"name": "正常", "id": "2"},
-                "impact": {"name": "中", "id": "2"},
+                "priority": {"name": priority.name, "id": priority.id},
                 "technician": {"name": technician.name},
                 "udf_fields": {
                     "udf_pick_306": {
@@ -72,4 +81,11 @@ class ServiceDeskService:
         }
         
         data = {'input_data': json.dumps(input_data)}
-        return requests.post(url, headers=headers, data=data, verify=False) 
+        response = requests.post(url, headers=headers, data=data, verify=False)
+        response_data = response.json()
+        
+        # 确保返回的是字典而不是模型对象
+        return {
+            "status": "success" if response.status_code in [200, 201] else "error",
+            "data": response_data
+        } 
